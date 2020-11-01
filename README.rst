@@ -46,8 +46,6 @@ Developing
 
 3. Import the api urls to your projects ``urls.py`` file:
 ::
-   from oscar_vue_api.app import application as api
-
    urlpatterns = [
        ....
        path('vsbridge/', include('oscar_vue_api.urls')),
