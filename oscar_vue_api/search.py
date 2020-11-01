@@ -1,12 +1,14 @@
 from elasticsearch_dsl.connections import connections
-from elasticsearch_dsl import DocType, Text, Date, Integer, Float, Boolean, Object, Nested, Keyword, Long, InnerDoc
+from elasticsearch_dsl import utils, Document, Text, Date, Integer, Float, Boolean, Object, Nested, Keyword, Long, \
+    InnerDoc
 from elasticsearch.helpers import bulk
 from elasticsearch import Elasticsearch
 from oscar.core.loading import get_model, get_class
 
-connections.create_connection(hosts=['elastic:changeme@db.local'], timeout=20)
+connections.create_connection(hosts=[{'host': 'localhost', 'port': 9200}], timeout=20)
 
-class TaxRulesIndex(DocType):
+
+class TaxRulesIndex(Document):
     id = Integer()
     code = Text()
     priority = Integer()
@@ -16,7 +18,7 @@ class TaxRulesIndex(DocType):
     tax_rate_ids = Long()
     calculate_subtotal = Boolean()
     rates = Object(
-        properties = {
+        properties={
             'id': Integer(),
             'tax_country_id': Text(),
             'tax_region_id': Integer(),
@@ -25,35 +27,47 @@ class TaxRulesIndex(DocType):
             'code': Text(),
         }
     )
-    
+
     class Index:
         name = 'vue_storefront_catalog'
         doc_type = 'taxrule'
 
-    class Meta:
-        doc_type = 'taxrule'
 
 def bulk_indexing_taxrules():
     TaxRulesIndex().init()
     es = connections.get_connection()
     all_taxrules = [1]
-    bulk(client=es, actions=(obj_indexing_taxrule() for b in all_taxrules ))
+    bulk(client=es, actions=(obj_indexing_taxrule() for b in all_taxrules))
+
+
+def sanitize_dict(dict_):
+    result = {}
+    for k, v in dict_.items():
+        for m in utils.META_FIELDS:
+            if k.startswith('_') and k.endswith():
+                result[k] = v
+                break
+            elif not k.startswith('_'):
+                result[k] = v
+                break
+
+    return result
+
 
 def obj_indexing_taxrule():
-
     obj = TaxRulesIndex(
         meta={
             'id': 2,
         },
-        id = 2,
-        code = "Norway",
-        priority = 0,
-        position = 0,
-        customer_tax_class_ids = [3],
-        product_tax_class_ids = [2],
-        tax_rate_ids = [4],
-        calculate_subtotal = False,
-        rates = [{
+        id=2,
+        code="Norway",
+        priority=0,
+        position=0,
+        customer_tax_class_ids=[3],
+        product_tax_class_ids=[2],
+        tax_rate_ids=[4],
+        calculate_subtotal=False,
+        rates=[{
             'id': 2,
             'tax_country_id': 'NO',
             'tax_region_id': 0,
@@ -61,13 +75,13 @@ def obj_indexing_taxrule():
             'rate': 25,
             'code': 'VAT25%',
         }]
-        
+
     )
     obj.save()
     return obj.to_dict(include_meta=True, skip_empty=False)
 
-        
-class CategoriesIndex(DocType):
+
+class CategoriesIndex(Document):
     id = Integer()
     parent_id = Integer()
     name = Text()
@@ -79,13 +93,11 @@ class CategoriesIndex(DocType):
     children_data = Nested(include_in_parent=True)
     tsk = Long()
     sgn = Text()
-    
+
     class Index:
         name = 'vue_storefront_catalog'
         doc_type = 'category'
 
-    class Meta:
-        doc_type = 'category'
 
 class InnerCategoriesIndex(InnerDoc):
     id = Integer()
@@ -99,13 +111,11 @@ class InnerCategoriesIndex(InnerDoc):
     children_data = Nested(include_in_parent=True)
     tsk = Long()
     sgn = Text()
-    
+
     class Index:
         name = 'vue_storefront_catalog'
         doc_type = 'category'
 
-    class Meta:
-        doc_type = 'category'
 
 def bulk_indexing_categories():
     CategoriesIndex().init()
@@ -113,25 +123,27 @@ def bulk_indexing_categories():
     Category = get_model('catalogue', 'category')
     bulk(client=es, actions=(obj_indexing_category(b) for b in Category.get_root_nodes().iterator()))
 
+
 def category_subs(category, parent):
     depth = category.get_depth()
     sub_categories = []
     obj = InnerCategoriesIndex(
-        id = category.id,
-        parent_id = parent.id,
-        name = category.name,
-        is_active = True,
-        position = 2,
-        level = depth + 1,
-        product_count = 1,
-        children_data = {},
-        tsk = 0,
-        include_in_menu = 0,
-        sgn = "",
+        id=category.id,
+        parent_id=parent.id,
+        name=category.name,
+        is_active=True,
+        position=2,
+        level=depth + 1,
+        product_count=1,
+        children_data={},
+        tsk=0,
+        include_in_menu=0,
+        sgn="",
     )
     obj.children_data
     return obj.to_dict(skip_empty=False)
-    
+
+
 def obj_indexing_category(category):
     rootpage = category.get_root()
     depth = category.get_depth()
@@ -140,30 +152,29 @@ def obj_indexing_category(category):
         for child in category.get_children():
             obj_child = category_subs(child, category)
             children_data.append(obj_child)
-                
+
     depth = category.get_depth()
     obj = CategoriesIndex(
         meta={
             'id': category.id,
         },
-        id = category.id,
-        parent_id = 0,
-        name = category.name,
-        is_active = True,
-        position = 2,
-        level = depth + 1,
-        product_count = 1,
-        children_data = children_data,
-        tsk = 0,
-        include_in_menu = 0,
-        sgn = "",
+        id=category.id,
+        parent_id=0,
+        name=category.name,
+        is_active=True,
+        position=2,
+        level=depth + 1,
+        product_count=1,
+        children_data=children_data,
+        tsk=0,
+        include_in_menu=0,
+        sgn="",
     )
     obj.save(skip_empty=False)
-    return obj.to_dict(include_meta=True, skip_empty=False)
+    return sanitize_dict(obj.to_dict(include_meta=True, skip_empty=False))
 
 
-class ProductsIndex(DocType):
-
+class ProductsIndex(Document):
     id = Integer()
     sku = Keyword()
     name = Text()
@@ -176,10 +187,10 @@ class ProductsIndex(DocType):
     updated_at = Date()
     extension_attributes = Long()
     product_links = Long()
-    tier_prices= Long()
+    tier_prices = Long()
     custom_attributes = Long()
     category = Object(
-        properties = {
+        properties={
             'category_id': Long(),
 
             'name': Text(),
@@ -198,14 +209,14 @@ class ProductsIndex(DocType):
 
     configurable_options = Object()
     configurable_children = Object()
-    
+
     category_ids = Long()
     stock = Object(properties={'is_in_stock': Boolean()})
-    
+
     special_price = Float()
     new = Integer()
     sale = Integer()
-    
+
     special_from_date = Date()
     special_to_date = Date()
     priceInclTax = Float()
@@ -218,9 +229,6 @@ class ProductsIndex(DocType):
         name = 'vue_storefront_catalog'
         doc_type = 'product'
 
-    class Meta:
-        doc_type = 'product'
-
 
 def bulk_indexing_products():
     ProductsIndex().init()
@@ -228,12 +236,13 @@ def bulk_indexing_products():
     Product = get_model('catalogue', 'product')
     bulk(client=es, actions=(obj_indexing_product(b) for b in Product.objects.all().iterator()))
 
+
 def obj_indexing_product(product):
     Selector = get_class('partner.strategy', 'Selector')
     if product.images.first():
-        image=product.images.first().original.path
+        image = product.images.first().original.path
     else:
-        image=""
+        image = ""
 
     all_categories = []
     category_ids = []
@@ -242,7 +251,7 @@ def obj_indexing_product(product):
             'category_id': category.id,
             'name': category.name
         }]
-        #category_ids += str(category.id)
+        # category_ids += str(category.id)
         all_categories += category_mapping
         category_ids.append(category.id)
     strategy = Selector().strategy()
@@ -251,7 +260,7 @@ def obj_indexing_product(product):
         meta={
             'id': product.id,
         },
-        id = product.id,
+        id=product.id,
         sku=product.upc,
         name=product.title,
         attribute_set_id=None,
@@ -263,9 +272,9 @@ def obj_indexing_product(product):
         created_at=product.date_created,
         updated_at=product.date_updated,
         extension_attributes=[],
-        product_links = [],
-        tier_prices = [],
-        custom_attributes = None,
+        product_links=[],
+        tier_prices=[],
+        custom_attributes=None,
         category=all_categories,
         description=product.description,
         image=image,
@@ -280,29 +289,15 @@ def obj_indexing_product(product):
         configurable_options=[],
         configurable_children=[],
         category_ids=category_ids,
-        
+
         stock={
             'is_in_stock': True,
         },
-        sgn = "",
+        sgn="",
     )
-    obj.save()
-    return obj.to_dict(include_meta=True)
+    obj.save(skip_empty=False)
+    return sanitize_dict(obj.to_dict(include_meta=True, skip_empty=False))
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+if __name__ == '__main__':
+    bulk_indexing_products()
