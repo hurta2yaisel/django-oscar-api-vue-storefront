@@ -13,7 +13,7 @@ Still under development, no release yet.
 Notes
 =====
 
-`Documentation <https://github.com/DivanteLtd/vue-storefront-integration-boilerplate/blob/master/1.%20Expose%20the%20API%20endpoints%20required%20by%20VS/Required%20API%20specification.md>`_ we are following for the api.
+`Documentation <https://github.com/DivanteLtd/storefront-integration-sdk/blob/tutorial/Dynamic%20API%20specification.md>`_ we are following for the api.
 
 `Better definition of required fields <https://github.com/DivanteLtd/bigcommerce2vuestorefront/tree/master/src/templates>`_
 
@@ -50,7 +50,7 @@ Developing
 
    urlpatterns = [
        ....
-       url(r'^vsbridge/', api.urls),
+       path('vsbridge/', include('oscar_vue_api.urls')),
    ]
 
 
