@@ -45,7 +45,7 @@ setup(
     # specify dependencies
     install_requires=[
         'setuptools',
-        'elasticsearch-dsl',
+        'elasticsearch-dsl>=6.0.0,<7.0.0',
         'django-cors-headers',
         'django-oscar-api'
     ],

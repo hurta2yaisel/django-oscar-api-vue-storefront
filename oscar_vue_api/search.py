@@ -1,5 +1,5 @@
 from elasticsearch_dsl.connections import connections
-from elasticsearch_dsl import utils, Document, Text, Date, Integer, Float, Boolean, Object, Nested, Keyword, Long, \
+from elasticsearch_dsl import utils, DocType, Text, Date, Integer, Float, Boolean, Object, Nested, Keyword, Long, \
     InnerDoc
 from elasticsearch.helpers import bulk
 from elasticsearch import Elasticsearch
@@ -8,7 +8,7 @@ from oscar.core.loading import get_model, get_class
 connections.create_connection(hosts=[{'host': 'localhost', 'port': 9200}], timeout=20)
 
 
-class TaxRulesIndex(Document):
+class TaxRulesIndex(DocType):
     id = Integer()
     code = Text()
     priority = Integer()
@@ -41,10 +41,11 @@ def bulk_indexing_taxrules():
 
 
 def sanitize_dict(dict_):
+    print(dict_)
     result = {}
     for k, v in dict_.items():
         for m in utils.META_FIELDS:
-            if k.startswith('_') and k.endswith():
+            if k.startswith('_') and k.endswith(m):
                 result[k] = v
                 break
             elif not k.startswith('_'):
@@ -81,7 +82,7 @@ def obj_indexing_taxrule():
     return obj.to_dict(include_meta=True, skip_empty=False)
 
 
-class CategoriesIndex(Document):
+class CategoriesIndex(DocType):
     id = Integer()
     parent_id = Integer()
     name = Text()
@@ -174,7 +175,7 @@ def obj_indexing_category(category):
     return sanitize_dict(obj.to_dict(include_meta=True, skip_empty=False))
 
 
-class ProductsIndex(Document):
+class ProductsIndex(DocType):
     id = Integer()
     sku = Keyword()
     name = Text()
@@ -295,7 +296,7 @@ def obj_indexing_product(product):
         },
         sgn="",
     )
-    obj.save(skip_empty=False)
+    obj.save(skip_empty=True)
     return sanitize_dict(obj.to_dict(include_meta=True, skip_empty=False))
 
 
