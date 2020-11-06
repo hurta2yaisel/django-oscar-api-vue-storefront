@@ -5,7 +5,21 @@ from elasticsearch.helpers import bulk
 from elasticsearch import Elasticsearch
 from oscar.core.loading import get_model, get_class
 
-connections.create_connection(hosts=[{'host': 'localhost', 'port': 9200}], timeout=20)
+conf = {
+    'default': {
+        'hosts': [
+            {
+                'host': 'localhost',
+                'port': 9200
+            }
+        ]
+    }
+}
+
+connections.configure(**conf)
+
+connections.create_connection(hosts=['elastic:changeme@db.local'], timeout=20)
+# connections.create_connection(hosts=[{'host': 'localhost', 'port': 9200}], timeout=20)
 
 
 class TaxRulesIndex(DocType):

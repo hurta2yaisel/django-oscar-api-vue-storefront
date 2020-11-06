@@ -17,4 +17,4 @@ urlpatterns = [
                   path('cart/shipping-information', views.BasketTotalsView.as_view()),
                   # path('products/index', views.ProductList.as_view(), name='product-list'),
                   path('catalog', views.ElasticView.as_view()),
-              ] + urls.urlpatterns
+              ]# + urls.urlpatterns
