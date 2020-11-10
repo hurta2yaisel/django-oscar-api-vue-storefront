@@ -19,6 +19,8 @@ conf = {
 connections.configure(**conf)
 
 connections.create_connection(hosts=['elastic:changeme@db.local'], timeout=20)
+
+
 # connections.create_connection(hosts=[{'host': 'localhost', 'port': 9200}], timeout=20)
 
 
@@ -46,12 +48,15 @@ class TaxRulesIndex(DocType):
         name = 'vue_storefront_catalog'
         doc_type = 'taxrule'
 
+    class Meta:
+        doc_type = "taxrule"
+
 
 def bulk_indexing_taxrules():
     TaxRulesIndex().init()
     es = connections.get_connection()
     all_taxrules = [1]
-    bulk(client=es, actions=(obj_indexing_taxrule() for b in all_taxrules))
+    return bulk(client=es, actions=(obj_indexing_taxrule() for b in all_taxrules))
 
 
 def sanitize_dict(dict_):
@@ -113,6 +118,9 @@ class CategoriesIndex(DocType):
         name = 'vue_storefront_catalog'
         doc_type = 'category'
 
+    class Meta:
+        doc_type = "category"
+
 
 class InnerCategoriesIndex(InnerDoc):
     id = Integer()
@@ -131,12 +139,15 @@ class InnerCategoriesIndex(InnerDoc):
         name = 'vue_storefront_catalog'
         doc_type = 'category'
 
+    class Meta:
+        doc_type = "category"
+
 
 def bulk_indexing_categories():
     CategoriesIndex().init()
     es = connections.get_connection()
     Category = get_model('catalogue', 'category')
-    bulk(client=es, actions=(obj_indexing_category(b) for b in Category.get_root_nodes().iterator()))
+    return bulk(client=es, actions=(obj_indexing_category(b) for b in Category.get_root_nodes().iterator()))
 
 
 def category_subs(category, parent):
@@ -155,7 +166,6 @@ def category_subs(category, parent):
         include_in_menu=0,
         sgn="",
     )
-    obj.children_data
     return obj.to_dict(skip_empty=False)
 
 
@@ -186,7 +196,10 @@ def obj_indexing_category(category):
         sgn="",
     )
     obj.save(skip_empty=False)
-    return sanitize_dict(obj.to_dict(include_meta=True, skip_empty=False))
+
+    # return sanitize_dict(obj.to_dict(include_meta=True, skip_empty=False))
+    data = obj.to_dict(include_meta=True, skip_empty=False)
+    return data
 
 
 class ProductsIndex(DocType):
@@ -244,20 +257,23 @@ class ProductsIndex(DocType):
         name = 'vue_storefront_catalog'
         doc_type = 'product'
 
+    class Meta:
+        doc_type = "product"
+
 
 def bulk_indexing_products():
     ProductsIndex().init()
     es = connections.get_connection()
     Product = get_model('catalogue', 'product')
-    bulk(client=es, actions=(obj_indexing_product(b) for b in Product.objects.all().iterator()))
+    return bulk(client=es, actions=(obj_indexing_product(b) for b in Product.objects.all().iterator()), stats_only=True)
 
 
 def obj_indexing_product(product):
     Selector = get_class('partner.strategy', 'Selector')
     if product.images.first():
-        image = product.images.first().original.path
+        image = "http://127.0.0.1:8000" + product.images.first().original.url
     else:
-        image = ""
+        image = "https://dummyimage.com/600x400/000/fff"
 
     all_categories = []
     category_ids = []
@@ -310,9 +326,12 @@ def obj_indexing_product(product):
         },
         sgn="",
     )
-    obj.save(skip_empty=True)
-    return sanitize_dict(obj.to_dict(include_meta=True, skip_empty=False))
+    result = obj.save(skip_empty=True)
+    return obj.to_dict(include_meta=True, skip_empty=False)
 
 
 if __name__ == '__main__':
+    import django
+
+    django.setup()
     bulk_indexing_products()

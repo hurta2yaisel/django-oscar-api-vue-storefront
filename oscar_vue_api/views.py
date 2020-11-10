@@ -20,16 +20,17 @@ Selector = get_class('partner.strategy', 'Selector')
 
 selector = Selector()
 
-#class ProductList(product.ProductList):
+
+# class ProductList(product.ProductList):
 #    serializer_class = MyProductLinkSerializer
 
 class CurrentUserView(APIView):
+    renderer_classes = (CustomJSONRenderer,)
 
-    renderer_classes = (CustomJSONRenderer, )
-    
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
+
 
 class CreateBasketView(APIView):
     """
@@ -38,16 +39,16 @@ class CreateBasketView(APIView):
     Retrieve your basket id.
     """
 
-    renderer_classes = (CustomJSONRenderer, )
-    
+    renderer_classes = (CustomJSONRenderer,)
+
     def post(self, request, format=None):
         basket = operations.get_basket(request)
         return Response(basket.id)
 
-class PullBasketView(APIView):
 
-    renderer_classes = (CustomJSONRenderer, )
-    
+class PullBasketView(APIView):
+    renderer_classes = (CustomJSONRenderer,)
+
     def get(self, request, format=None):
         basket_id = request.query_params.get('cartId')
         basket = BasketModel.objects.filter(pk=basket_id).first()
@@ -56,10 +57,10 @@ class PullBasketView(APIView):
         print(serializer.data)
         return Response(serializer.data)
 
-class UpdateBasketItemView(APIView):
 
-    renderer_classes = (CustomJSONRenderer, )
-    
+class UpdateBasketItemView(APIView):
+    renderer_classes = (CustomJSONRenderer,)
+
     def validate(self, basket, product, quantity, options):
         availability = basket.strategy.fetch_for_product(
             product).availability
@@ -80,12 +81,12 @@ class UpdateBasketItemView(APIView):
         return True, None
 
     def post(self, request, format=None):
-        
+
         quantity = int(request.data['cartItem']['qty'])
         product_sku = request.data['cartItem']['sku']
         quote_id = request.data['cartItem']['quoteId']
         product = ProductModel.objects.filter(upc=product_sku).first()
-        
+
         if 'item_id' in request.data['cartItem']:
             line_id = request.data['cartItem']['item_id']
             current_line = LineModel.objects.filter(pk=line_id).first()
@@ -103,7 +104,7 @@ class UpdateBasketItemView(APIView):
                     status=status.HTTP_406_NOT_ACCEPTABLE)
             line = basket.add_product(product, quantity, options=None)
             line_id = line[0].id
-        
+
         response_item = {}
         response_item['item_id'] = line_id
         response_item['sku'] = product_sku
@@ -117,46 +118,48 @@ class UpdateBasketItemView(APIView):
         print(response.data)
         return Response(response.data)
 
+
 class DeleteBasketItemView(APIView):
-    renderer_classes = (CustomJSONRenderer, )
-    
+    renderer_classes = (CustomJSONRenderer,)
+
     def post(self, request):
         line_id = request.data['cartItem']['item_id']
         line = LineModel.objects.filter(pk=line_id).first()
         response = line.delete()
         return Response(response)
 
+
 class BasketTotalsView(APIView):
-    renderer_classes = (CustomJSONRenderer, )
-    
+    renderer_classes = (CustomJSONRenderer,)
+
     def post(self, request, format=None):
         return self.do_it(request)
-    
+
     def get(self, request, format=None):
         return self.do_it(request)
-    
+
     def do_it(self, request, format=None):
         basket_id = request.query_params.get('cartId')
         basket = BasketModel.objects.filter(pk=basket_id).first()
         basket._set_strategy(selector.strategy(request=request, user=request.user))
         total_segments = []
-        total_segments.append({ 'code': 'subtotal', 'title': 'Subtotal', 'value': basket.total_excl_tax})
-        total_segments.append({ 'code': 'tax', 'title': 'Tax', 'value': basket.total_tax })
-        total_segments.append({ 'code': 'grand_total', 'title': 'Grand Total', 'value': basket.total_incl_tax })
+        total_segments.append({'code': 'subtotal', 'title': 'Subtotal', 'value': basket.total_excl_tax})
+        total_segments.append({'code': 'tax', 'title': 'Tax', 'value': basket.total_tax})
+        total_segments.append({'code': 'grand_total', 'title': 'Grand Total', 'value': basket.total_incl_tax})
         serializer = FullBasketSerializer(basket, context={'total_segments': total_segments})
         return Response(serializer.data)
-    
+
+
 class ElasticView(APIView):
-    permission_classes=[]
-    renderer_classes = (JSONRenderer, )
-    
+    permission_classes = []
+    renderer_classes = (JSONRenderer,)
+
     def get(self, request, format=None):
         _search = elastic_result(self, request)
         return _search
         pass
-    
+
     def post(self, request):
         _search = elastic_result(self, request)
         return _search
         pass
-
