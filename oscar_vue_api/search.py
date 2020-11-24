@@ -220,7 +220,6 @@ class ProductsIndex(DocType):
     category = Object(
         properties={
             'category_id': Long(),
-
             'name': Text(),
         }
     )
